@@ -196,7 +196,9 @@ std::ostream& operator<<(std::ostream& os, QSize s)
 
 void KWinGrid::initGeometry(int __forceScreen)
 {
-    activeWindow_ = activeWindow();
+    activeWindowChanged(0);
+    if (activeWindow_ == 0)
+	activeWindow_ = activeWindow();
     if (activeWindow_) {
 	KWin::WindowInfo info(KWin::windowInfo(activeWindow_));
 	inner_ = info.geometry();
