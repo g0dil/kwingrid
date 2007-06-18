@@ -11,7 +11,7 @@ kwingrid_iface_stub.o
 
 LIBS=-lkdecore -lkdeui -lDCOP -lqt-mt -lX11 -lXext
 LOPTS=-L/usr/X11R6/lib -g
-COPTS=-I. -I /usr/include/kde -I /usr/include/qt3 -I /usr/X11R6/include/X11 -O2 -Wall -g
+COPTS=-I. -I /usr/include/kde -I /usr/include/qt3 -I /usr/include/X11 -O2 -Wall -g
 
 all: mocs bin
 
