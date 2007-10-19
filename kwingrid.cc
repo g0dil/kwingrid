@@ -299,8 +299,6 @@ void KWinGrid::applyGeometry()
 	XMoveResizeWindow(KApplication::kApplication()->getDisplay(),activeWindow_,
 			  pos.x(),pos.y(), inner_.width(),inner_.height());
     }
-    //XSync(KApplication::kApplication()->getDisplay(),False);
-    //KWin::forceActiveWindow(activeWindow_);
 }
 
 // slots
