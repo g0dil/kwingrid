@@ -1,21 +1,23 @@
 #include <iostream>
 
+#include <QtGui/QDesktopWidget>
+#include <QtGui/QX11Info>
+
 #include <kapplication.h>
-#include <dcopclient.h>
-#include <kwin.h>
-#include <Xlib.h>
-#include <Xutil.h>
+#include <kwindowsystem.h>
 #include <netwm_def.h>
 
 #include "kwingrid.h"
 #include "kwingrid.moc"
 
-KWinGrid::KWinGrid(int hgap__, int vgap__, int hsplit__, int vsplit__, int split__)
-    : DCOPObject("grid"), split_(split__), 
-      hgap_(hgap__), vgap_(vgap__), hsplit_(hsplit__), vsplit_(vsplit__)
+KWinGrid::KWinGrid(int hgap__, int vgap__, int hsplit__, int vsplit__, int split__,
+                   int ignorestruts__)
+    : split_(split__), ignorestruts_(ignorestruts__), hgap_(hgap__), vgap_(vgap__), hsplit_(hsplit__),
+      vsplit_(vsplit__)
+
 {
-    module_ = new KWinModule(KApplication::kApplication());
-    connect(module_,SIGNAL(activeWindowChanged(WId)),this,SLOT(activeWindowChanged(WId)));
+    connect(KWindowSystem::self(),SIGNAL(activeWindowChanged(WId)),
+	    this,SLOT(activeWindowChanged(WId)));
 }
 
 void KWinGrid::move(int __xslot, int __yslot)
@@ -31,8 +33,8 @@ void KWinGrid::resize(int __xsize, int __ysize)
 void KWinGrid::toDesk(int __desk)
 {
     int w = activeWindow();
-    if (w) 
-	KWin::setOnDesktop(w,__desk);
+    if (w)
+	KWindowSystem::setOnDesktop(w,__desk);
 }
 
 void KWinGrid::quit()
@@ -42,8 +44,8 @@ void KWinGrid::quit()
 
 int KWinGrid::activeWindow()
 {
-    int av = module_->activeWindow();
-    KWin::WindowInfo info = KWin::windowInfo(av,NET::WMWindowType);
+    int av = KWindowSystem::activeWindow();
+    KWindowInfo info = KWindowSystem::windowInfo(av,NET::WMWindowType);
     if (info.windowType(NET::AllTypesMask) == NET::Desktop) return 0;
     return av;
 }
@@ -62,16 +64,16 @@ void KWinGrid::activeWindowChanged(WId id)
 
     int deltaDays = timestamp_.date().daysTo(tm.date());
     int deltaMSecs = timestamp_.time().msecsTo(tm.time());
-    
+
     if (deltaDays>2 || deltaDays<0) {
 	activeWindow_ = 0;
 	return;
     }
-    
+
     deltaMSecs += deltaDays * 1000*(60*60*24);
 
     if (deltaMSecs <= 300 && deltaMSecs > 0)
-	KWin::forceActiveWindow(activeWindow_);
+	KWindowSystem::forceActiveWindow(activeWindow_);
     else
 	activeWindow_ = 0;
 }
@@ -96,15 +98,18 @@ void KWinGrid::moveRelative(int __xdiff, int __ydiff)
 	xSlot += __xdiff;
 	ySlot += __ydiff;
 	if (xSlot<0) {
-	    if (numScreens_ > 1 and screen_ > 0) {
-		initGeometry(screen_-1);
-		xSlot = hsplit_-1;
-		ySlot = (outer_.top()-region_.top()+vsize_/2)/vsize_ + __ydiff;
-	    } else 
+	    QPoint p (outer_.topLeft());
+	    if (numScreens_ > 1 && p.x() > hsize_) {
+		p.rx() -= hsize_;
+		initGeometry( QApplication::desktop()->screenNumber(p) );
+	    } else
 		xSlot = 0;
 	} else if (xSlot >= hsplit_) {
-	    if (numScreens_ > 1 and screen_ < numScreens_-1) {
-		initGeometry(screen_+1);
+	    QPoint p (outer_.topLeft());
+	    QRect wa = KWindowSystem::workArea();
+	    if (numScreens_ > 1 && p.x() + 2* hsize_ < wa.right()) {
+		p.rx() += 2*hsize_;
+		initGeometry( QApplication::desktop()->screenNumber(p) );
 		xSlot = 0;
 		ySlot = (outer_.top()-region_.top()+vsize_/2)/vsize_ + __ydiff;
 	    } else
@@ -146,7 +151,7 @@ QRect KWinGrid::doMoveResize(int __xslot, int __yslot,
 			     int __xsize, int __ysize)
 {
     QRect newGeometry(outer_);
-    
+
     if (__xsize == -1) {
 	__xsize = (outer_.width()+hsize_/2)/hsize_;
 	if (__xsize<1) __xsize = 1;
@@ -157,7 +162,7 @@ QRect KWinGrid::doMoveResize(int __xslot, int __yslot,
 	if (__ysize<1) __ysize = 1;
 	if (__ysize>vsplit_) __ysize = vsplit_;
     }
-    
+
     newGeometry.setWidth(__xsize*hsize_-hgap_);
     newGeometry.setHeight(__ysize*vsize_-vgap_);
 
@@ -200,7 +205,7 @@ void KWinGrid::initGeometry(int __forceScreen)
     if (activeWindow_ == 0)
 	activeWindow_ = activeWindow();
     if (activeWindow_) {
-	KWin::WindowInfo info(KWin::windowInfo(activeWindow_));
+	KWindowInfo info(KWindowSystem::windowInfo(activeWindow_,NET::WMGeometry|NET::WMFrameExtents));
 	inner_ = info.geometry();
 	outer_ = info.frameGeometry();
 	orig_ = outer_;
@@ -223,8 +228,10 @@ void KWinGrid::initGeometry(int __forceScreen)
 	    region_ = QApplication::desktop()->screenGeometry(screen_);
 	    numScreens_ = QApplication::desktop()->numScreens();
 	}
-	QRect wa = module_->workArea();
-	region_ = region_ & wa;
+	if (screen_ != ignorestruts_) {
+	    QRect wa = KWindowSystem::workArea();
+	    region_ = region_ & wa;
+	}
 
 	hsize_ = (region_.width()-hgap_)/hsplit_;
 	vsize_ = (region_.height()-vgap_)/vsplit_;
@@ -235,6 +242,12 @@ void KWinGrid::initGeometry(int __forceScreen)
 	topLeft+=QPoint(hdelta/2,vdelta/2);
 	region_.moveTopLeft(topLeft);
 	region_.setSize(QSize(hsize_*hsplit_,vsize_*vsplit_));
+
+	long supplied;
+	if (XGetWMNormalHints(QX11Info::display(), activeWindow_, &hints_, &supplied))
+	    hints_.flags &= supplied;
+	else
+	    hints_.flags = 0;
     }
 }
 
@@ -248,29 +261,25 @@ void KWinGrid::updateGeometry(QRect& __new)
     inner_ = newInner;
     outer_ = __new;
 
-    XSizeHints hints;
-    long supplied;
-    if (XGetWMNormalHints(KApplication::kApplication()->getDisplay(), 
-			  activeWindow_, &hints, &supplied)) {
-	hints.flags &= supplied;
-	if (hints.flags & PResizeInc && hints.width_inc != 0 && hints.height_inc != 0) {
-	    QSize base(0,0);
-	    if (hints.flags & PBaseSize) {
-		base.setWidth(hints.base_width);
-		base.setHeight(hints.base_height);
-	    } else if (hints.flags & PMinSize) {
-		base.setWidth(hints.min_width);
-		base.setHeight(hints.min_height);
-	    }
-	    QSize newSize(((inner_.width()-base.width())/hints.width_inc)*hints.width_inc + base.width(),
-			  ((inner_.height()-base.height())/hints.height_inc)*hints.height_inc + base.height());
-	    QSize delta(inner_.size() - newSize);
-	    QPoint offset(delta.width()/2,delta.height()/2);
-	    inner_.setSize(newSize);
-	    outer_.setSize(outer_.size() - delta);
-	    inner_.moveTopLeft(inner_.topLeft() + offset);
-	    outer_.moveTopLeft(outer_.topLeft() + offset);
+    if (hints_.flags & PResizeInc && hints_.width_inc != 0 && hints_.height_inc != 0) {
+	QSize base(0,0);
+	if (hints_.flags & PBaseSize) {
+	    base.setWidth(hints_.base_width);
+	    base.setHeight(hints_.base_height);
+	} else if (hints_.flags & PMinSize) {
+	    base.setWidth(hints_.min_width);
+	    base.setHeight(hints_.min_height);
 	}
+	QSize newSize(((inner_.width()-base.width())/hints_.width_inc)*hints_.width_inc
+		      + base.width(),
+		      ((inner_.height()-base.height())/hints_.height_inc)*hints_.height_inc
+		      + base.height());
+	QSize delta(inner_.size() - newSize);
+	QPoint offset(delta.width()/2,delta.height()/2);
+	inner_.setSize(newSize);
+	outer_.setSize(outer_.size() - delta);
+	inner_.moveTopLeft(inner_.topLeft() + offset);
+	outer_.moveTopLeft(outer_.topLeft() + offset);
     }
 }
 
@@ -282,8 +291,7 @@ void KWinGrid::applyGeometry()
 	// XMoveResizeWindow sometimes still moves the window a little
 	// bit. Seems to have something todo with window gravity
 	// ... we just leave the position allone in that case.
-	XResizeWindow(KApplication::kApplication()->getDisplay(),activeWindow_,
-		      inner_.width(),inner_.height());
+	XResizeWindow(QX11Info::display(),activeWindow_, inner_.width(),inner_.height());
     else {
 	// I don't really know, whats all this stuff concerning window
 	// gravity. I only know, this works for my openoffice windows,
@@ -292,11 +300,9 @@ void KWinGrid::applyGeometry()
 	// NorthWestGravity on my desktop so did not check other
 	// window gravities.
 	QPoint pos = outer_.topLeft();
-	XWindowAttributes winAttributes;
-	if (XGetWindowAttributes(KApplication::kApplication()->getDisplay(),activeWindow_, 
-				 &winAttributes) && winAttributes.win_gravity == StaticGravity)
+	if (hints_.flags & PWinGravity && hints_.win_gravity == StaticGravity)
 	    pos = inner_.topLeft();
-	XMoveResizeWindow(KApplication::kApplication()->getDisplay(),activeWindow_,
+	XMoveResizeWindow(QX11Info::display(),activeWindow_,
 			  pos.x(),pos.y(), inner_.width(),inner_.height());
     }
 }
@@ -323,7 +329,6 @@ void KWinGrid::move_BR()
     move(hsplit_/2,vsplit_/2);
 }
 
-    
 void KWinGrid::resize_Q()
 {
     resize(vsplit_/2,hsplit_/2);
@@ -343,7 +348,6 @@ void KWinGrid::resize_F()
 {
     resize(vsplit_,hsplit_);
 }
-
 
 void KWinGrid::move_L()
 {
@@ -365,7 +369,6 @@ void KWinGrid::move_D()
     moveRelative(0,1);
 }
 
-    
 void KWinGrid::resize_IH()
 {
     resizeRelative(1,0);
