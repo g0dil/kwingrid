@@ -19,18 +19,22 @@
 int main(int argc, char **argv)
 {
     KAboutData * aboutdata = new KAboutData("kwingrid",
-					    "KWinGrid",
-					    ki18n("Window Grid"),
-					    "0.1",
-					    KLocalizedString(),
-					    KAboutData::License_GPL,
-					    ki18n("(C) 1999,2000,2002,2004 Stefan Bund"));
+                                            "KWinGrid",
+                                            ki18n("Window Grid"),
+                                            "0.1",
+                                            KLocalizedString(),
+                                            KAboutData::License_GPL,
+                                            ki18n("(C) 1999,2000,2002,2004 Stefan Bund"));
     aboutdata->addAuthor(ki18n("Stefan Bund"),ki18n("Developer"),"stefab@j32.de",
-			 "http://www.j32.de");
-  
+                         "http://www.j32.de");
+
     KCmdLineOptions winGridOpts;
     winGridOpts.add("split <width>", ki18n("split"), 0);
     winGridOpts.add("ignorestruts <screen>", ki18n("ignorestruts"), "");
+    winGridOpts.add("reserve-north <n>", ki18n("reserve north"), "");
+    winGridOpts.add("reserve-south <n>", ki18n("reserve south"), "");
+    winGridOpts.add("reserve-west <n>", ki18n("reserve west"), "");
+    winGridOpts.add("reserve-east <n>", ki18n("reserve east"), "");
     winGridOpts.add("+hgap", ki18n("hgap"), 0);
     winGridOpts.add("+vgap", ki18n("vgap"), 0);
     winGridOpts.add("+hsplit", ki18n("hsplit"), 0);
@@ -41,30 +45,45 @@ int main(int argc, char **argv)
     KUniqueApplication::addCmdLineOptions();
 
     if (! KUniqueApplication::start()) {
-	kdError() << "KWinGrid is already running!" << endl;
-	return 0;
+        kdError() << "KWinGrid is already running!" << endl;
+        return 0;
     }
 
     KApplication * app = new KUniqueApplication;
     KCmdLineArgs * args = KCmdLineArgs::parsedArgs();
 
     if (args->count()!=4) {
-	kdError() << "Invalid arguments. Try --help\n";
-	return 0;
+        kdError() << "Invalid arguments. Try --help\n";
+        return 0;
     }
 
     int split = 0;
     int ignorestruts = -1;
     if (args->isSet("split"))
-	split = args->getOption("split").toInt();
-    
+        split = args->getOption("split").toInt();
+
     if (args->isSet("ignorestruts"))
-	ignorestruts = args->getOption("ignorestruts").toInt();
-    
+        ignorestruts = args->getOption("ignorestruts").toInt();
+
     if (args->count() != 4) {
-	std::cerr << "invalid number of arguments" << std::endl;
-	return 1;
+        std::cerr << "invalid number of arguments" << std::endl;
+        return 1;
     }
+
+    int rn = 0;
+    int rs = 0;
+    int re = 0;
+    int rw = 0;
+
+    if (args->isSet("reserve-north"))
+        rn = args->getOption("reserve-north").toInt();
+    if (args->isSet("reserve-south"))
+        rs = args->getOption("reserve-south").toInt();
+    if (args->isSet("reserve-west"))
+        rw = args->getOption("reserve-west").toInt();
+    if (args->isSet("reserve-east"))
+        re = args->getOption("reserve-east").toInt();
+
     int hgap = args->arg(0).toInt();
     int vgap = args->arg(1).toInt();
     int hsplit = args->arg(2).toInt();
@@ -72,10 +91,11 @@ int main(int argc, char **argv)
 
     args->clear();
 
-    KWinGrid * winGrid = new KWinGrid(hgap,vgap,hsplit,vsplit,split,ignorestruts);
+    KWinGrid * winGrid = new KWinGrid(hgap,vgap,hsplit,vsplit,split,ignorestruts,
+                                      rn, rs, rw, re);
 
     KActionCollection * actions = new KActionCollection(winGrid);
-    
+
     KAction * move_TL = new KAction(winGrid);
     actions->addAction("Move top-left", move_TL);
     move_TL->setHelpText("Move active window top-left");
@@ -181,7 +201,7 @@ int main(int argc, char **argv)
         Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_Left,Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_Left));
     QObject::connect(resize_DH, SIGNAL(triggered(bool)), winGrid, SLOT(resize_DH()));
 
-    KAction * resize_DV = new KAction(resize_DV);
+    KAction * resize_DV = new KAction(winGrid);
     actions->addAction("Decrease vertical size", resize_DV);
     resize_DV->setHelpText("Decrease vertical size");
     resize_DV->setGlobalShortcut(KShortcut(

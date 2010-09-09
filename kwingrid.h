@@ -15,12 +15,14 @@ class KWinGrid : public QObject
     Q_OBJECT
 
 public:
-    KWinGrid(int hgap__, int vgap__, int hsplit__, int vsplit__, int split__=0, int ignorestruts__=-1);
+    KWinGrid(int hgap__, int vgap__, int hsplit__, int vsplit__, int split__=0,
+             int ignorestruts__=-1,
+             int reserveNorth__=0, int reserveSouth__=0, int reserveWest__=0, int reserveEast__=0);
 
     virtual void move(int __xslot, int __yslot);
     virtual void resize(int __xsize, int __ysize);
     virtual void moveResize(int __xslot, int __yslot,
-			    int __xsize, int __ysize);
+                            int __xsize, int __ysize);
     virtual void moveRelative(int __xdiff, int __ydiff);
     virtual void resizeRelative(int __xdiff, int __ydiff);
     virtual void toDesk(int __desk);
@@ -58,12 +60,16 @@ private:
     void updateGeometry(QRect& __new);
     void applyGeometry();
     QRect doMoveResize(int __xslot, int __yslot,
-		       int __xsize, int __ysize);
+                       int __xsize, int __ysize);
 
     void updateTimestamp(void);
 
     int split_;
     int ignorestruts_;
+    int reserveNorth_;
+    int reserveSouth_;
+    int reserveEast_;
+    int reserveWest_;
 
     int activeWindow_;
     QRect inner_;

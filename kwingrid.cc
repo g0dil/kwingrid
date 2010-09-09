@@ -11,13 +11,14 @@
 #include "kwingrid.moc"
 
 KWinGrid::KWinGrid(int hgap__, int vgap__, int hsplit__, int vsplit__, int split__,
-                   int ignorestruts__)
-    : split_(split__), ignorestruts_(ignorestruts__), hgap_(hgap__), vgap_(vgap__), hsplit_(hsplit__),
-      vsplit_(vsplit__)
-
+                   int ignorestruts__, int reserveNorth__, int reserveSouth__,
+                   int reserveWest__, int reserveEast__)
+  : split_(split__), ignorestruts_(ignorestruts__), reserveNorth_(reserveNorth__),
+    reserveSouth_(reserveSouth__), reserveEast_(reserveEast__), reserveWest_(reserveWest__),
+    hgap_(hgap__), vgap_(vgap__), hsplit_(hsplit__), vsplit_(vsplit__)
 {
     connect(KWindowSystem::self(),SIGNAL(activeWindowChanged(WId)),
-	    this,SLOT(activeWindowChanged(WId)));
+            this,SLOT(activeWindowChanged(WId)));
 }
 
 void KWinGrid::move(int __xslot, int __yslot)
@@ -34,7 +35,7 @@ void KWinGrid::toDesk(int __desk)
 {
     int w = activeWindow();
     if (w)
-	KWindowSystem::setOnDesktop(w,__desk);
+        KWindowSystem::setOnDesktop(w,__desk);
 }
 
 void KWinGrid::quit()
@@ -58,7 +59,7 @@ void KWinGrid::updateTimestamp(void)
 void KWinGrid::activeWindowChanged(WId id)
 {
     if (!activeWindow_ || timestamp_.isNull())
-	return;
+        return;
 
     QDateTime tm = QDateTime::currentDateTime();
 
@@ -66,26 +67,26 @@ void KWinGrid::activeWindowChanged(WId id)
     int deltaMSecs = timestamp_.time().msecsTo(tm.time());
 
     if (deltaDays>2 || deltaDays<0) {
-	activeWindow_ = 0;
-	return;
+        activeWindow_ = 0;
+        return;
     }
 
     deltaMSecs += deltaDays * 1000*(60*60*24);
 
-    if (deltaMSecs <= 300 && deltaMSecs > 0)
-	KWindowSystem::forceActiveWindow(activeWindow_);
+    if (deltaMSecs <= 1000 && deltaMSecs > 0)
+        KWindowSystem::forceActiveWindow(activeWindow_);
     else
-	activeWindow_ = 0;
+        activeWindow_ = 0;
 }
 
 void KWinGrid::moveResize(int __xslot, int __yslot,
-			  int __xsize, int __ysize)
+                          int __xsize, int __ysize)
 {
     initGeometry();
     if (activeWindow_) {
-	QRect newGeometry = doMoveResize(__xslot,__yslot,__xsize,__ysize);
-	updateGeometry(newGeometry);
-	applyGeometry();
+        QRect newGeometry = doMoveResize(__xslot,__yslot,__xsize,__ysize);
+        updateGeometry(newGeometry);
+        applyGeometry();
     }
 }
 
@@ -93,35 +94,35 @@ void KWinGrid::moveRelative(int __xdiff, int __ydiff)
 {
     initGeometry();
     if (activeWindow_) {
-	int xSlot = (outer_.left()-region_.left()+hsize_/2)/hsize_;
-	int ySlot = (outer_.top()-region_.top()+vsize_/2)/vsize_;
-	xSlot += __xdiff;
-	ySlot += __ydiff;
-	if (xSlot<0) {
-	    QPoint p (outer_.topLeft());
-	    if (numScreens_ > 1 && p.x() > hsize_) {
-		p.rx() -= hsize_;
-		initGeometry( QApplication::desktop()->screenNumber(p) );
-	    } else
-		xSlot = 0;
-	} else if (xSlot >= hsplit_) {
-	    QPoint p (outer_.topLeft());
-	    QRect wa = KWindowSystem::workArea();
-	    if (numScreens_ > 1 && p.x() + 2* hsize_ < wa.right()) {
-		p.rx() += 2*hsize_;
-		initGeometry( QApplication::desktop()->screenNumber(p) );
-		xSlot = 0;
-		ySlot = (outer_.top()-region_.top()+vsize_/2)/vsize_ + __ydiff;
-	    } else
-		xSlot = hsplit_-1;
-	}
-	if (ySlot<0)
-	    ySlot = 0;
-	else if (ySlot >= vsplit_)
-	    ySlot = vsplit_-1;
-	QRect newGeometry = doMoveResize(xSlot,ySlot,-1,-1);
-	updateGeometry(newGeometry);
-	applyGeometry();
+        int xSlot = (outer_.left()-region_.left()+hsize_/2)/hsize_;
+        int ySlot = (outer_.top()-region_.top()+vsize_/2)/vsize_;
+        xSlot += __xdiff;
+        ySlot += __ydiff;
+        if (xSlot<0) {
+            QPoint p (outer_.topLeft());
+            if (numScreens_ > 1 && p.x() > hsize_) {
+                p.rx() -= hsize_;
+                initGeometry( QApplication::desktop()->screenNumber(p) );
+            } else
+                xSlot = 0;
+        } else if (xSlot >= hsplit_) {
+            QPoint p (outer_.topLeft());
+            QRect wa = KWindowSystem::workArea();
+            if (numScreens_ > 1 && p.x() + 2* hsize_ < wa.right()) {
+                p.rx() += 2*hsize_;
+                initGeometry( QApplication::desktop()->screenNumber(p) );
+                xSlot = 0;
+                ySlot = (outer_.top()-region_.top()+vsize_/2)/vsize_ + __ydiff;
+            } else
+                xSlot = hsplit_-1;
+        }
+        if (ySlot<0)
+            ySlot = 0;
+        else if (ySlot >= vsplit_)
+            ySlot = vsplit_-1;
+        QRect newGeometry = doMoveResize(xSlot,ySlot,-1,-1);
+        updateGeometry(newGeometry);
+        applyGeometry();
     }
 }
 
@@ -129,55 +130,55 @@ void KWinGrid::resizeRelative(int __xdiff, int __ydiff)
 {
     initGeometry();
     if (activeWindow_) {
-	int xSize = (outer_.width()+hsize_/2)/hsize_;
-	int ySize = (outer_.height()+vsize_/2)/vsize_;
-	xSize += __xdiff;
-	ySize += __ydiff;
-	if (xSize<1)
-	    xSize = 1;
-	if (xSize>hsplit_)
-	    xSize = hsplit_;
-	if (ySize<1)
-	    ySize = 1;
-	if (ySize>vsplit_)
-	    ySize = vsplit_;
-	QRect newGeometry = doMoveResize(-1,-1,xSize,ySize);
-	updateGeometry(newGeometry);
-	applyGeometry();
+        int xSize = (outer_.width()+hsize_/2)/hsize_;
+        int ySize = (outer_.height()+vsize_/2)/vsize_;
+        xSize += __xdiff;
+        ySize += __ydiff;
+        if (xSize<1)
+            xSize = 1;
+        if (xSize>hsplit_)
+            xSize = hsplit_;
+        if (ySize<1)
+            ySize = 1;
+        if (ySize>vsplit_)
+            ySize = vsplit_;
+        QRect newGeometry = doMoveResize(-1,-1,xSize,ySize);
+        updateGeometry(newGeometry);
+        applyGeometry();
     }
 }
 
 QRect KWinGrid::doMoveResize(int __xslot, int __yslot,
-			     int __xsize, int __ysize)
+                             int __xsize, int __ysize)
 {
     QRect newGeometry(outer_);
 
     if (__xsize == -1) {
-	__xsize = (outer_.width()+hsize_/2)/hsize_;
-	if (__xsize<1) __xsize = 1;
-	if (__xsize>hsplit_) __xsize = hsplit_;
+        __xsize = (outer_.width()+hsize_/2)/hsize_;
+        if (__xsize<1) __xsize = 1;
+        if (__xsize>hsplit_) __xsize = hsplit_;
     }
     if (__ysize == -1) {
-	__ysize = (outer_.height()+vsize_/2)/vsize_;
-	if (__ysize<1) __ysize = 1;
-	if (__ysize>vsplit_) __ysize = vsplit_;
+        __ysize = (outer_.height()+vsize_/2)/vsize_;
+        if (__ysize<1) __ysize = 1;
+        if (__ysize>vsplit_) __ysize = vsplit_;
     }
 
     newGeometry.setWidth(__xsize*hsize_-hgap_);
     newGeometry.setHeight(__ysize*vsize_-vgap_);
 
     if (__xslot == -1) {
-	__xslot = (outer_.left()-region_.left()+hsize_/2)/hsize_;
-	if (__xslot<0) __xslot = 0;
-	if (__xslot>=hsplit_) __xslot = hsplit_-1;
+        __xslot = (outer_.left()-region_.left()+hsize_/2)/hsize_;
+        if (__xslot<0) __xslot = 0;
+        if (__xslot>=hsplit_) __xslot = hsplit_-1;
     }
     if (__yslot == -1) {
-	__yslot = (outer_.top()-region_.top()+vsize_/2)/vsize_;
-	if (__yslot<0) __yslot = 0;
-	if (__yslot>=vsplit_) __yslot = vsplit_-1;
+        __yslot = (outer_.top()-region_.top()+vsize_/2)/vsize_;
+        if (__yslot<0) __yslot = 0;
+        if (__yslot>=vsplit_) __yslot = vsplit_-1;
     }
     newGeometry.moveTopLeft(QPoint(region_.left() + __xslot*hsize_ + hgap_/2,
-				   region_.top() + __yslot*vsize_ + vgap_/2));
+                                   region_.top() + __yslot*vsize_ + vgap_/2));
     return newGeometry;
 }
 
@@ -203,51 +204,51 @@ void KWinGrid::initGeometry(int __forceScreen)
 {
     activeWindowChanged(0);
     if (activeWindow_ == 0)
-	activeWindow_ = activeWindow();
+        activeWindow_ = activeWindow();
     if (activeWindow_) {
-	KWindowInfo info(KWindowSystem::windowInfo(activeWindow_,NET::WMGeometry|NET::WMFrameExtents));
-	inner_ = info.geometry();
-	outer_ = info.frameGeometry();
-	orig_ = outer_;
-	if (split_) {
-	    if (__forceScreen == -1)
-		screen_ = outer_.left()>=split_ ? 1 : 0;
-	    else
-		screen_ = __forceScreen;
-	    region_ = QApplication::desktop()->screenGeometry();
-	    if (screen_ == 1)
-		region_.setLeft(split_);
-	    else
-		region_.setRight(split_-1);
-	    numScreens_ = 2;
-	} else {
-	    if (__forceScreen == -1)
-		screen_ = QApplication::desktop()->screenNumber(outer_.topLeft());
-	    else
-		screen_ = __forceScreen;
-	    region_ = QApplication::desktop()->screenGeometry(screen_);
-	    numScreens_ = QApplication::desktop()->numScreens();
-	}
-	if (screen_ != ignorestruts_) {
-	    QRect wa = KWindowSystem::workArea();
-	    region_ = region_ & wa;
-	}
+        KWindowInfo info(KWindowSystem::windowInfo(activeWindow_,NET::WMGeometry|NET::WMFrameExtents));
+        inner_ = info.geometry();
+        outer_ = info.frameGeometry();
+        orig_ = outer_;
+        if (split_) {
+            if (__forceScreen == -1)
+                screen_ = outer_.left()>=split_ ? 1 : 0;
+            else
+                screen_ = __forceScreen;
+            region_ = QApplication::desktop()->screenGeometry();
+            if (screen_ == 1)
+                region_.setLeft(split_);
+            else
+                region_.setRight(split_-1);
+            numScreens_ = 2;
+        } else {
+            if (__forceScreen == -1)
+                screen_ = QApplication::desktop()->screenNumber(outer_.topLeft());
+            else
+                screen_ = __forceScreen;
+            region_ = QApplication::desktop()->screenGeometry(screen_);
+            numScreens_ = QApplication::desktop()->numScreens();
+        }
+        if (screen_ != ignorestruts_) {
+            QRect wa = KWindowSystem::workArea();
+            region_ = region_ & wa;
+        }
 
-	hsize_ = (region_.width()-hgap_)/hsplit_;
-	vsize_ = (region_.height()-vgap_)/vsplit_;
+        hsize_ = (region_.width()-hgap_)/hsplit_;
+        vsize_ = (region_.height()-vgap_)/vsplit_;
 
-	int hdelta = region_.width()-hsize_*hsplit_;
-	int vdelta = region_.height()-vsize_*vsplit_;
-	QPoint topLeft(region_.topLeft());
-	topLeft+=QPoint(hdelta/2,vdelta/2);
-	region_.moveTopLeft(topLeft);
-	region_.setSize(QSize(hsize_*hsplit_,vsize_*vsplit_));
+        int hdelta = region_.width()-hsize_*hsplit_;
+        int vdelta = region_.height()-vsize_*vsplit_;
+        QPoint topLeft(region_.topLeft());
+        topLeft+=QPoint(hdelta/2,vdelta/2);
+        region_.moveTopLeft(topLeft);
+        region_.setSize(QSize(hsize_*hsplit_,vsize_*vsplit_));
 
-	long supplied;
-	if (XGetWMNormalHints(QX11Info::display(), activeWindow_, &hints_, &supplied))
-	    hints_.flags &= supplied;
-	else
-	    hints_.flags = 0;
+        long supplied;
+        if (XGetWMNormalHints(QX11Info::display(), activeWindow_, &hints_, &supplied))
+            hints_.flags &= supplied;
+        else
+            hints_.flags = 0;
     }
 }
 
@@ -255,31 +256,31 @@ void KWinGrid::updateGeometry(QRect& __new)
 {
     QRect newInner(inner_);
     newInner.moveTopLeft(QPoint(__new.left()+(inner_.left()-outer_.left()),
-				__new.top()+(inner_.top()-outer_.top())));
+                                __new.top()+(inner_.top()-outer_.top())));
     newInner.setSize(QSize(__new.width()-(outer_.width()-inner_.width()),
-			   __new.height()-(outer_.height()-inner_.height())));
+                           __new.height()-(outer_.height()-inner_.height())));
     inner_ = newInner;
     outer_ = __new;
 
     if (hints_.flags & PResizeInc && hints_.width_inc != 0 && hints_.height_inc != 0) {
-	QSize base(0,0);
-	if (hints_.flags & PBaseSize) {
-	    base.setWidth(hints_.base_width);
-	    base.setHeight(hints_.base_height);
-	} else if (hints_.flags & PMinSize) {
-	    base.setWidth(hints_.min_width);
-	    base.setHeight(hints_.min_height);
-	}
-	QSize newSize(((inner_.width()-base.width())/hints_.width_inc)*hints_.width_inc
-		      + base.width(),
-		      ((inner_.height()-base.height())/hints_.height_inc)*hints_.height_inc
-		      + base.height());
-	QSize delta(inner_.size() - newSize);
-	QPoint offset(delta.width()/2,delta.height()/2);
-	inner_.setSize(newSize);
-	outer_.setSize(outer_.size() - delta);
-	inner_.moveTopLeft(inner_.topLeft() + offset);
-	outer_.moveTopLeft(outer_.topLeft() + offset);
+        QSize base(0,0);
+        if (hints_.flags & PBaseSize) {
+            base.setWidth(hints_.base_width);
+            base.setHeight(hints_.base_height);
+        } else if (hints_.flags & PMinSize) {
+            base.setWidth(hints_.min_width);
+            base.setHeight(hints_.min_height);
+        }
+        QSize newSize(((inner_.width()-base.width())/hints_.width_inc)*hints_.width_inc
+                      + base.width(),
+                      ((inner_.height()-base.height())/hints_.height_inc)*hints_.height_inc
+                      + base.height());
+        QSize delta(inner_.size() - newSize);
+        QPoint offset(delta.width()/2,delta.height()/2);
+        inner_.setSize(newSize);
+        outer_.setSize(outer_.size() - delta);
+        inner_.moveTopLeft(inner_.topLeft() + offset);
+        outer_.moveTopLeft(outer_.topLeft() + offset);
     }
 }
 
@@ -287,23 +288,23 @@ void KWinGrid::applyGeometry()
 {
     updateTimestamp();
     if (orig_.topLeft() == outer_.topLeft())
-	// If the position of the window did not change,
-	// XMoveResizeWindow sometimes still moves the window a little
-	// bit. Seems to have something todo with window gravity
-	// ... we just leave the position allone in that case.
-	XResizeWindow(QX11Info::display(),activeWindow_, inner_.width(),inner_.height());
+        // If the position of the window did not change,
+        // XMoveResizeWindow sometimes still moves the window a little
+        // bit. Seems to have something todo with window gravity
+        // ... we just leave the position allone in that case.
+        XResizeWindow(QX11Info::display(),activeWindow_, inner_.width(),inner_.height());
     else {
-	// I don't really know, whats all this stuff concerning window
-	// gravity. I only know, this works for my openoffice windows,
-	// which have StaticGravity. I have not found any window with
-	// a window_gravity of neither StaticGravity nor
-	// NorthWestGravity on my desktop so did not check other
-	// window gravities.
-	QPoint pos = outer_.topLeft();
-	if (hints_.flags & PWinGravity && hints_.win_gravity == StaticGravity)
-	    pos = inner_.topLeft();
-	XMoveResizeWindow(QX11Info::display(),activeWindow_,
-			  pos.x(),pos.y(), inner_.width(),inner_.height());
+        // I don't really know, whats all this stuff concerning window
+        // gravity. I only know, this works for my openoffice windows,
+        // which have StaticGravity. I have not found any window with
+        // a window_gravity of neither StaticGravity nor
+        // NorthWestGravity on my desktop so did not check other
+        // window gravities.
+        QPoint pos = outer_.topLeft();
+        if (hints_.flags & PWinGravity && hints_.win_gravity == StaticGravity)
+            pos = inner_.topLeft();
+        XMoveResizeWindow(QX11Info::display(),activeWindow_,
+                          pos.x(),pos.y(), inner_.width(),inner_.height());
     }
 }
 
@@ -311,42 +312,43 @@ void KWinGrid::applyGeometry()
 
 void KWinGrid::move_TL()
 {
-    move(0,0);
+    move(reserveWest_,reserveNorth_);
 }
 
 void KWinGrid::move_TR()
 {
-    move(hsplit_/2,0);
+    move((hsplit_-reserveWest_-reserveEast_)/2+reserveWest_,reserveNorth_);
 }
 
 void KWinGrid::move_BL()
 {
-    move(0,vsplit_/2);
+    move(reserveWest_,(vsplit_-reserveNorth_-reserveSouth_)/2+reserveNorth_);
 }
 
 void KWinGrid::move_BR()
 {
-    move(hsplit_/2,vsplit_/2);
+    move((hsplit_-reserveWest_-reserveEast_)/2+reserveWest_,
+         (vsplit_-reserveNorth_-reserveSouth_)/2+reserveNorth_);
 }
 
 void KWinGrid::resize_Q()
 {
-    resize(vsplit_/2,hsplit_/2);
+    resize((hsplit_-reserveWest_-reserveEast_)/2,(vsplit_-reserveNorth_-reserveSouth_)/2);
 }
 
 void KWinGrid::resize_H()
 {
-    resize(vsplit_,hsplit_/2);
+    resize((hsplit_-reserveWest_-reserveEast_),(vsplit_-reserveNorth_-reserveSouth_)/2);
 }
 
 void KWinGrid::resize_V()
 {
-    resize(vsplit_/2,hsplit_);
+    resize((hsplit_-reserveWest_-reserveEast_)/2,vsplit_-reserveNorth_-reserveSouth_);
 }
 
 void KWinGrid::resize_F()
 {
-    resize(vsplit_,hsplit_);
+    resize(hsplit_-reserveWest_-reserveEast_,vsplit_-reserveNorth_-reserveSouth_);
 }
 
 void KWinGrid::move_L()
@@ -388,4 +390,3 @@ void KWinGrid::resize_DV()
 {
     resizeRelative(0,-1);
 }
-
