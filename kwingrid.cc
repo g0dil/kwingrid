@@ -11,11 +11,12 @@
 #include "kwingrid.moc"
 
 KWinGrid::KWinGrid(int hgap__, int vgap__, int hsplit__, int vsplit__, int split__,
-                   int ignorestruts__, int reserveNorth__, int reserveSouth__,
-                   int reserveWest__, int reserveEast__)
+                   int ignorestruts__, int reserveNorth__, int reserveSouth__, int reserveWest__, int reserveEast__,
+                   int southstrut__, int strutscreen__)
   : split_(split__), ignorestruts_(ignorestruts__), reserveNorth_(reserveNorth__),
     reserveSouth_(reserveSouth__), reserveEast_(reserveEast__), reserveWest_(reserveWest__),
-    hgap_(hgap__), vgap_(vgap__), hsplit_(hsplit__), vsplit_(vsplit__)
+    hgap_(hgap__), vgap_(vgap__), hsplit_(hsplit__), vsplit_(vsplit__),
+    southstrut_(southstrut__), strutscreen_(strutscreen__)
 {
     connect(KWindowSystem::self(),SIGNAL(activeWindowChanged(WId)),
             this,SLOT(activeWindowChanged(WId)));
@@ -73,7 +74,7 @@ void KWinGrid::activeWindowChanged(WId id)
 
     deltaMSecs += deltaDays * 1000*(60*60*24);
 
-    if (deltaMSecs <= 1000 && deltaMSecs > 0)
+    if (deltaMSecs <= 500 && deltaMSecs > 0)
         KWindowSystem::forceActiveWindow(activeWindow_);
     else
         activeWindow_ = 0;
@@ -227,11 +228,15 @@ void KWinGrid::initGeometry(int __forceScreen)
             else
                 screen_ = __forceScreen;
             region_ = QApplication::desktop()->screenGeometry(screen_);
+            // region_ = QApplication::desktop()->availableGeometry(screen_);
             numScreens_ = QApplication::desktop()->numScreens();
         }
-        if (screen_ != ignorestruts_) {
+        if (screen_ != ignorestruts_ && ignorestruts_ != -1) {
             QRect wa = KWindowSystem::workArea();
             region_ = region_ & wa;
+        }
+        if (screen_ == strutscreen_ || strutscreen_ == -1) {
+            region_.setHeight(region_.height() - southstrut_);
         }
 
         hsize_ = (region_.width()-hgap_)/hsplit_;
@@ -287,6 +292,7 @@ void KWinGrid::updateGeometry(QRect& __new)
 void KWinGrid::applyGeometry()
 {
     updateTimestamp();
+    KWindowSystem::clearState(activeWindow_, NET::MaxVert | NET::MaxHoriz | NET::FullScreen);
     if (orig_.topLeft() == outer_.topLeft())
         // If the position of the window did not change,
         // XMoveResizeWindow sometimes still moves the window a little
@@ -308,47 +314,118 @@ void KWinGrid::applyGeometry()
     }
 }
 
+void KWinGrid::moveSlot(int nx, int ny, int posx, int posy)
+{
+    move((hsplit_-reserveWest_-reserveEast_)/nx * posx + reserveWest_,
+         (vsplit_-reserveNorth_-reserveSouth_)/ny * posy + reserveNorth_);
+}
+
+void KWinGrid::resizeSlot(int nx, int ny, int szx, int szy)
+{
+    resize((hsplit_-reserveWest_-reserveEast_)/nx * (szx+1),
+           (vsplit_-reserveNorth_-reserveSouth_)/ny * (szy+1));
+}
+
 // slots
 
 void KWinGrid::move_TL()
 {
-    move(reserveWest_,reserveNorth_);
+    moveSlot(2, 2, 0, 0);
 }
 
 void KWinGrid::move_TR()
 {
-    move((hsplit_-reserveWest_-reserveEast_)/2+reserveWest_,reserveNorth_);
+    moveSlot(2, 2, 1, 0);
 }
 
 void KWinGrid::move_BL()
 {
-    move(reserveWest_,(vsplit_-reserveNorth_-reserveSouth_)/2+reserveNorth_);
+    moveSlot(2, 2, 0, 1);
 }
 
 void KWinGrid::move_BR()
 {
-    move((hsplit_-reserveWest_-reserveEast_)/2+reserveWest_,
-         (vsplit_-reserveNorth_-reserveSouth_)/2+reserveNorth_);
+    moveSlot(2, 2, 1, 1);
 }
 
 void KWinGrid::resize_Q()
 {
-    resize((hsplit_-reserveWest_-reserveEast_)/2,(vsplit_-reserveNorth_-reserveSouth_)/2);
+    resizeSlot(2, 2, 0, 0);
 }
 
 void KWinGrid::resize_H()
 {
-    resize((hsplit_-reserveWest_-reserveEast_),(vsplit_-reserveNorth_-reserveSouth_)/2);
+    resizeSlot(2, 2, 1, 0);
 }
 
 void KWinGrid::resize_V()
 {
-    resize((hsplit_-reserveWest_-reserveEast_)/2,vsplit_-reserveNorth_-reserveSouth_);
+    resizeSlot(2, 2, 0, 1);
 }
 
 void KWinGrid::resize_F()
 {
-    resize(hsplit_-reserveWest_-reserveEast_,vsplit_-reserveNorth_-reserveSouth_);
+    resizeSlot(2, 2, 1, 1);
+}
+
+void KWinGrid::move_00()
+{
+    moveSlot(3, 2, 0, 0);
+}
+
+void KWinGrid::move_10()
+{
+    moveSlot(3, 2, 1, 0);
+}
+
+void KWinGrid::move_20()
+{
+    moveSlot(3, 2, 2, 0);
+}
+
+void KWinGrid::move_01()
+{
+    moveSlot(3, 2, 0, 1);
+}
+
+void KWinGrid::move_11()
+{
+    moveSlot(3, 2, 1, 1);
+}
+
+void KWinGrid::move_21()
+{
+    moveSlot(3, 2, 2, 1);
+}
+
+void KWinGrid::resize_00()
+{
+    resizeSlot(3, 2, 0, 0);
+}
+
+void KWinGrid::resize_10()
+{
+    resizeSlot(3, 2, 1, 0);
+}
+
+void KWinGrid::resize_20()
+{
+    resizeSlot(3, 2, 2, 0);
+}
+
+void KWinGrid::resize_01()
+{
+    resizeSlot(3, 2, 0, 1);
+}
+
+void KWinGrid::resize_11()
+{
+    resizeSlot(3, 2, 1, 1);
+}
+
+void KWinGrid::resize_21()
+{
+    resizeSlot(3, 2, 2, 1);
 }
 
 void KWinGrid::move_L()
@@ -390,3 +467,4 @@ void KWinGrid::resize_DV()
 {
     resizeRelative(0,-1);
 }
+

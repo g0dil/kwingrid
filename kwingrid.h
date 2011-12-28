@@ -17,7 +17,8 @@ class KWinGrid : public QObject
 public:
     KWinGrid(int hgap__, int vgap__, int hsplit__, int vsplit__, int split__=0,
              int ignorestruts__=-1,
-             int reserveNorth__=0, int reserveSouth__=0, int reserveWest__=0, int reserveEast__=0);
+             int reserveNorth__=0, int reserveSouth__=0, int reserveWest__=0, int reserveEast__=0,
+             int southstrut__=0, int strutscreen__=-2);
 
     virtual void move(int __xslot, int __yslot);
     virtual void resize(int __xsize, int __ysize);
@@ -42,6 +43,20 @@ public slots:
     void resize_V();
     void resize_F();
 
+    void move_00();
+    void move_10();
+    void move_20();
+    void move_01();
+    void move_11();
+    void move_21();
+
+    void resize_00();
+    void resize_10();
+    void resize_20();
+    void resize_01();
+    void resize_11();
+    void resize_21();
+
     void move_L();
     void move_R();
     void move_U();
@@ -61,6 +76,8 @@ private:
     void applyGeometry();
     QRect doMoveResize(int __xslot, int __yslot,
                        int __xsize, int __ysize);
+    void moveSlot(int nx, int ny, int posx, int posy);
+    void resizeSlot(int nx, int ny, int szx, int szy);
 
     void updateTimestamp(void);
 
@@ -87,6 +104,9 @@ private:
     int vgap_;
     int hsplit_;
     int vsplit_;
+
+    int southstrut_;
+    int strutscreen_;
 
     QDateTime timestamp_;
 };

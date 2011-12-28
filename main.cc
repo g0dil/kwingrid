@@ -30,11 +30,13 @@ int main(int argc, char **argv)
 
     KCmdLineOptions winGridOpts;
     winGridOpts.add("split <width>", ki18n("split"), 0);
-    winGridOpts.add("ignorestruts <screen>", ki18n("ignorestruts"), "");
+    winGridOpts.add("ignorestruts <screen>", ki18n("ignorestruts. -1 = all screens"), "");
     winGridOpts.add("reserve-north <n>", ki18n("reserve north"), "");
     winGridOpts.add("reserve-south <n>", ki18n("reserve south"), "");
     winGridOpts.add("reserve-west <n>", ki18n("reserve west"), "");
     winGridOpts.add("reserve-east <n>", ki18n("reserve east"), "");
+    winGridOpts.add("southstrut <n>", ki18n("set south strut size"), "");
+    winGridOpts.add("strutscreen <n>", ki18n("set screen to apply manual strut to. -1 = all screens"), "");
     winGridOpts.add("+hgap", ki18n("hgap"), 0);
     winGridOpts.add("+vgap", ki18n("vgap"), 0);
     winGridOpts.add("+hsplit", ki18n("hsplit"), 0);
@@ -58,7 +60,7 @@ int main(int argc, char **argv)
     }
 
     int split = 0;
-    int ignorestruts = -1;
+    int ignorestruts = -2;
     if (args->isSet("split"))
         split = args->getOption("split").toInt();
 
@@ -69,6 +71,13 @@ int main(int argc, char **argv)
         std::cerr << "invalid number of arguments" << std::endl;
         return 1;
     }
+
+    int southstrut (0);
+    int strutscreen (-2);
+    if (args->isSet("southstrut"))
+        southstrut = args->getOption("southstrut").toInt();
+    if (args->isSet("strutscreen"))
+        strutscreen = args->getOption("strutscreen").toInt();
 
     int rn = 0;
     int rs = 0;
@@ -92,125 +101,84 @@ int main(int argc, char **argv)
     args->clear();
 
     KWinGrid * winGrid = new KWinGrid(hgap,vgap,hsplit,vsplit,split,ignorestruts,
-                                      rn, rs, rw, re);
+                                      rn, rs, rw, re, southstrut, strutscreen);
 
     KActionCollection * actions = new KActionCollection(winGrid);
 
-    KAction * move_TL = new KAction(winGrid);
-    actions->addAction("Move top-left", move_TL);
-    move_TL->setHelpText("Move active window top-left");
-    move_TL->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_I, Qt::META+Qt::SHIFT+Qt::Key_I));
-    QObject::connect(move_TL, SIGNAL(triggered(bool)), winGrid, SLOT(move_TL()));
+#define ACTION(pos, key, slot)                                          \
+    KAction * slot = new KAction(winGrid);                              \
+    actions->addAction("Move " pos, slot);                              \
+    slot->setHelpText("Move active window" pos);                        \
+    slot->setGlobalShortcut(KShortcut(                                  \
+        Qt::ALT+Qt::SHIFT+Qt::Key_ ## key, Qt::META+Qt::SHIFT+Qt::Key_ ## key)); \
+    QObject::connect(slot, SIGNAL(triggered(bool)), winGrid, SLOT(slot()))
 
-    KAction * move_TR = new KAction(winGrid);
-    actions->addAction("Move top-right", move_TR);
-    move_TR->setHelpText("Move active window top-right");
-    move_TR->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_O, Qt::META+Qt::SHIFT+Qt::Key_O));
-    QObject::connect(move_TR, SIGNAL(triggered(bool)), winGrid, SLOT(move_TR()));
+    ACTION("top-left", I, move_TL);
+    ACTION("top-right", O, move_TR);
+    ACTION("bottom-left", K, move_BL);
+    ACTION("bottom-right", L, move_BR);
 
-    KAction * move_BL = new KAction(winGrid);
-    actions->addAction("Move bottom-left", move_BL);
-    move_BL->setHelpText("Move active window bottom-left");
-    move_BL->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_K, Qt::META+Qt::SHIFT+Qt::Key_K));
-    QObject::connect(move_BL, SIGNAL(triggered(bool)), winGrid, SLOT(move_BL()));
+    ACTION("top-left (3x2 grid)", T, move_00);
+    ACTION("top-middle (3x2 grid)", Y, move_10);
+    ACTION("top-right (3x2 grid)", U, move_20);
+    ACTION("bottom-left (3x2 grid)", G, move_01);
+    ACTION("bottom-middle (3x2 grid)", H, move_11);
+    ACTION("bottom-right (3x2 grid)", J, move_21);
 
-    KAction * move_BR = new KAction(winGrid);
-    actions->addAction("Move bottom-right", move_BR);
-    move_BR->setHelpText("Move active window bottom-right");
-    move_BR->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_L, Qt::META+Qt::SHIFT+Qt::Key_L));
-    QObject::connect(move_BR, SIGNAL(triggered(bool)), winGrid, SLOT(move_BR()));
+#undef ACTION
+#define ACTION(size, key, slot)                                         \
+    KAction * slot = new KAction(winGrid);                              \
+    actions->addAction("Resize " size, slot);                           \
+    slot->setHelpText("Resize " size);                                  \
+    slot->setGlobalShortcut(KShortcut(                                  \
+        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_ ## key, Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_ ## key)); \
+    QObject::connect(slot, SIGNAL(triggered(bool)), winGrid, SLOT(slot()));
 
-    KAction * resize_Q = new KAction(winGrid);
-    actions->addAction("Resize quarter", resize_Q);
-    resize_Q->setHelpText("Resize quarter");
-    resize_Q->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_I, Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_I));
-    QObject::connect(resize_Q, SIGNAL(triggered(bool)), winGrid, SLOT(resize_Q()));
+    ACTION("quarter", I, resize_Q);
 
-    KAction * resize_H = new KAction(winGrid);
-    actions->addAction("Resize horizontal", resize_H);
-    resize_H->setHelpText("Resize horizontal");
-    resize_H->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_O, Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_O));
-    QObject::connect(resize_H, SIGNAL(triggered(bool)), winGrid, SLOT(resize_H()));
+    ACTION("horizontal", O, resize_H);
+    ACTION("vertical", K, resize_V);
+    ACTION("full", L, resize_F);
 
-    KAction * resize_V = new KAction(winGrid);
-    actions->addAction("Resize vertical", resize_V);
-    resize_V->setHelpText("Resize vertical");
-    resize_V->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_K, Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_K));
-    QObject::connect(resize_V, SIGNAL(triggered(bool)), winGrid, SLOT(resize_V()));
+    ACTION("top-left (3x2 grid)", T, resize_00);
+    ACTION("top-middle (3x2 grid)", Y, resize_10);
+    ACTION("top-right (3x2 grid)", U, resize_20);
+    ACTION("bottom-left (3x2 grid)", G, resize_01);
+    ACTION("bottom-middle (3x2 grid)", H, resize_11);
+    ACTION("bottom-right (3x2 grid)", J, resize_21);
 
-    KAction * resize_F = new KAction(winGrid);
-    actions->addAction("Resize full", resize_F);
-    resize_F->setHelpText("Resize full");
-    resize_F->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_L, Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_L));
-    QObject::connect(resize_F, SIGNAL(triggered(bool)), winGrid, SLOT(resize_F()));
+#undef ACTION
+#define ACTION(dir, key, slot)                                          \
+    KAction * slot = new KAction(winGrid);                              \
+    actions->addAction("Move " dir, slot);                              \
+    slot->setHelpText("Move " dir);                                     \
+    slot->setGlobalShortcut(KShortcut(                                  \
+        Qt::ALT+Qt::SHIFT+Qt::Key_ ## key, Qt::META+Qt::SHIFT+Qt::Key_ ## key)); \
+    QObject::connect(slot, SIGNAL(triggered(bool)), winGrid, SLOT(slot()));
 
-    KAction * move_L = new KAction(winGrid);
-    actions->addAction("Move left", move_L);
-    move_L->setHelpText("Move left");
-    move_L->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_Left, Qt::META+Qt::SHIFT+Qt::Key_Left));
-    QObject::connect(move_L, SIGNAL(triggered(bool)), winGrid, SLOT(move_L()));
+    ACTION("left", Left, move_L);
+    ACTION("right", Right, move_R);
+    ACTION("up", Up, move_U);
+    ACTION("down", Down, move_D);
 
-    KAction * move_R = new KAction(winGrid);
-    actions->addAction("Move right", move_R);
-    move_R->setHelpText("Move right");
-    move_R->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_Right, Qt::META+Qt::SHIFT+Qt::Key_Right));
-    QObject::connect(move_R, SIGNAL(triggered(bool)), winGrid, SLOT(move_R()));
+#undef ACTION
+#define ACTION(resize, key, slot)                                       \
+    KAction * slot = new KAction(winGrid);                              \
+    actions->addAction(resize " size", slot);                           \
+    slot->setHelpText(resize " size");                                  \
+    slot->setGlobalShortcut(KShortcut(                                  \
+        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_ ## key,Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_ ## key)); \
+    QObject::connect(slot, SIGNAL(triggered(bool)), winGrid, SLOT(slot()));
 
-    KAction * move_U = new KAction(winGrid);
-    actions->addAction("Move up", move_U);
-    move_U->setHelpText("Move up");
-    move_U->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_Up, Qt::META+Qt::SHIFT+Qt::Key_Up));
-    QObject::connect(move_U, SIGNAL(triggered(bool)), winGrid, SLOT(move_U()));
+    ACTION("Increase horizontal", Right, resize_IH);
+    ACTION("Increase vertical", Down, resize_IV);
+    ACTION("Decrease horizontal", Left, resize_DH);
+    ACTION("Decrease vertical", Up, resize_DV);
 
-    KAction * move_D = new KAction(winGrid);
-    actions->addAction("Move down", move_D);
-    move_D->setHelpText("Move down");
-    move_D->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::SHIFT+Qt::Key_Down, Qt::META+Qt::SHIFT+Qt::Key_Down));
-    QObject::connect(move_D, SIGNAL(triggered(bool)), winGrid, SLOT(move_D()));
-
-    KAction * resize_IH = new KAction(winGrid);
-    actions->addAction("Increase horizontal size", resize_IH);
-    resize_IH->setHelpText("Increase horizontal size");
-    resize_IH->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_Right,Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_Right));
-    QObject::connect(resize_IH, SIGNAL(triggered(bool)), winGrid, SLOT(resize_IH()));
-
-    KAction * resize_IV = new KAction(winGrid);
-    actions->addAction("Increase vertical size", resize_IV);
-    resize_IV->setHelpText("Increase vertical size");
-    resize_IV->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_Down,Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_Down));
-    QObject::connect(resize_IV, SIGNAL(triggered(bool)), winGrid, SLOT(resize_IV()));
-
-    KAction * resize_DH = new KAction(winGrid);
-    actions->addAction("Decrease horizontal size", resize_DH);
-    resize_DH->setHelpText("Decrease horizontal size");
-    resize_DH->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_Left,Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_Left));
-    QObject::connect(resize_DH, SIGNAL(triggered(bool)), winGrid, SLOT(resize_DH()));
-
-    KAction * resize_DV = new KAction(winGrid);
-    actions->addAction("Decrease vertical size", resize_DV);
-    resize_DV->setHelpText("Decrease vertical size");
-    resize_DV->setGlobalShortcut(KShortcut(
-        Qt::ALT+Qt::CTRL+Qt::SHIFT+Qt::Key_Up,Qt::META+Qt::CTRL+Qt::SHIFT+Qt::Key_Up));
-    QObject::connect(resize_DV, SIGNAL(triggered(bool)), winGrid, SLOT(resize_DV()));
+#undef ACTION
 
     int ret = app->exec();
 
     delete app;
     return ret;
 }
-
