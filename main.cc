@@ -118,14 +118,40 @@ int main(int argc, char **argv)
     ACTION("bottom-left", K, move_BL);
     ACTION("bottom-right", L, move_BR);
 
-    ACTION("top-left (3x2 grid)", T, move_00);
-    ACTION("top-middle (3x2 grid)", Y, move_10);
-    ACTION("top-right (3x2 grid)", U, move_20);
-    ACTION("bottom-left (3x2 grid)", G, move_01);
-    ACTION("bottom-middle (3x2 grid)", H, move_11);
-    ACTION("bottom-right (3x2 grid)", J, move_21);
+    ACTION("top-left (3x2 grid)", T, move32_00);
+    ACTION("top-middle (3x2 grid)", Y, move32_10);
+    ACTION("top-right (3x2 grid)", U, move32_20);
+    ACTION("bottom-left (3x2 grid)", G, move32_01);
+    ACTION("bottom-middle (3x2 grid)", H, move32_11);
+    ACTION("bottom-right (3x2 grid)", J, move32_21);
+
+    ACTION(" 0,0 (4x3 grid)", Q, move43_00);
+    ACTION(" 1,0 (4x3 grid)", W, move43_10);
+    ACTION(" 2,0 (4x3 grid)", E, move43_20);
+    ACTION(" 3,0 (4x3 grid)", R, move43_30);
+    ACTION(" 0,1 (4x3 grid)", A, move43_01);
+    ACTION(" 1,1 (4x3 grid)", S, move43_11);
+    ACTION(" 2,1 (4x3 grid)", D, move43_21);
+    ACTION(" 3,1 (4x3 grid)", F, move43_31);
+    ACTION(" 0,2 (4x3 grid)", Z, move43_02);
+    ACTION(" 1,2 (4x3 grid)", X, move43_12);
+    ACTION(" 2,2 (4x3 grid)", C, move43_22);
+    ACTION(" 3,2 (4x3 grid)", V, move43_32);
 
 #undef ACTION
+
+#define ACTION(pos, key, slot)                                          \
+    KAction * slot = new KAction(winGrid);                              \
+    actions->addAction("Move to Screen " pos, slot);                              \
+    slot->setHelpText("Move to Screen " pos);                        \
+    slot->setGlobalShortcut(KShortcut(                                  \
+        Qt::ALT+Qt::SHIFT+Qt::Key_ ## key, Qt::META+Qt::SHIFT+Qt::Key_ ## key)); \
+    QObject::connect(slot, SIGNAL(triggered(bool)), winGrid, SLOT(slot()))
+
+    ACTION("0", B, move_Screen0);
+    ACTION("1", M, move_Screen1);
+#undef ACTION
+
 #define ACTION(size, key, slot)                                         \
     KAction * slot = new KAction(winGrid);                              \
     actions->addAction("Resize " size, slot);                           \
@@ -140,14 +166,27 @@ int main(int argc, char **argv)
     ACTION("vertical", K, resize_V);
     ACTION("full", L, resize_F);
 
-    ACTION("top-left (3x2 grid)", T, resize_00);
-    ACTION("top-middle (3x2 grid)", Y, resize_10);
-    ACTION("top-right (3x2 grid)", U, resize_20);
-    ACTION("bottom-left (3x2 grid)", G, resize_01);
-    ACTION("bottom-middle (3x2 grid)", H, resize_11);
-    ACTION("bottom-right (3x2 grid)", J, resize_21);
+    ACTION("top-left (3x2 grid)", T, resize32_00);
+    ACTION("top-middle (3x2 grid)", Y, resize32_10);
+    ACTION("top-right (3x2 grid)", U, resize32_20);
+    ACTION("bottom-left (3x2 grid)", G, resize32_01);
+    ACTION("bottom-middle (3x2 grid)", H, resize32_11);
+    ACTION("bottom-right (3x2 grid)", J, resize32_21);
 
+    ACTION(" 0,0 (4x3 grid)", Q, resize43_00);
+    ACTION(" 1,0 (4x3 grid)", W, resize43_10);
+    ACTION(" 2,0 (4x3 grid)", E, resize43_20);
+    ACTION(" 3,0 (4x3 grid)", R, resize43_30);
+    ACTION(" 0,1 (4x3 grid)", A, resize43_01);
+    ACTION(" 1,1 (4x3 grid)", S, resize43_11);
+    ACTION(" 2,1 (4x3 grid)", D, resize43_21);
+    ACTION(" 3,1 (4x3 grid)", F, resize43_31);
+    ACTION(" 0,2 (4x3 grid)", Z, resize43_02);
+    ACTION(" 1,2 (4x3 grid)", X, resize43_12);
+    ACTION(" 2,2 (4x3 grid)", C, resize43_22);
+    ACTION(" 3,2 (4x3 grid)", V, resize43_32);
 #undef ACTION
+
 #define ACTION(dir, key, slot)                                          \
     KAction * slot = new KAction(winGrid);                              \
     actions->addAction("Move " dir, slot);                              \
@@ -160,8 +199,8 @@ int main(int argc, char **argv)
     ACTION("right", Right, move_R);
     ACTION("up", Up, move_U);
     ACTION("down", Down, move_D);
-
 #undef ACTION
+
 #define ACTION(resize, key, slot)                                       \
     KAction * slot = new KAction(winGrid);                              \
     actions->addAction(resize " size", slot);                           \
@@ -174,7 +213,6 @@ int main(int argc, char **argv)
     ACTION("Increase vertical", Down, resize_IV);
     ACTION("Decrease horizontal", Left, resize_DH);
     ACTION("Decrease vertical", Up, resize_DV);
-
 #undef ACTION
 
     int ret = app->exec();

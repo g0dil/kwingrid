@@ -26,6 +26,7 @@ public:
                             int __xsize, int __ysize);
     virtual void moveRelative(int __xdiff, int __ydiff);
     virtual void resizeRelative(int __xdiff, int __ydiff);
+    virtual void toScreen(int screen);
     virtual void toDesk(int __desk);
 
     virtual void quit();
@@ -43,19 +44,43 @@ public slots:
     void resize_V();
     void resize_F();
 
-    void move_00();
-    void move_10();
-    void move_20();
-    void move_01();
-    void move_11();
-    void move_21();
+    void move32_00();
+    void move32_10();
+    void move32_20();
+    void move32_01();
+    void move32_11();
+    void move32_21();
+    void resize32_00();
+    void resize32_10();
+    void resize32_20();
+    void resize32_01();
+    void resize32_11();
+    void resize32_21();
 
-    void resize_00();
-    void resize_10();
-    void resize_20();
-    void resize_01();
-    void resize_11();
-    void resize_21();
+    void move43_00();
+    void move43_10();
+    void move43_20();
+    void move43_30();
+    void move43_01();
+    void move43_11();
+    void move43_21();
+    void move43_31();
+    void move43_02();
+    void move43_12();
+    void move43_22();
+    void move43_32();
+    void resize43_00();
+    void resize43_10();
+    void resize43_20();
+    void resize43_30();
+    void resize43_01();
+    void resize43_11();
+    void resize43_21();
+    void resize43_31();
+    void resize43_02();
+    void resize43_12();
+    void resize43_22();
+    void resize43_32();
 
     void move_L();
     void move_R();
@@ -66,6 +91,9 @@ public slots:
     void resize_DH();
     void resize_IV();
     void resize_DV();
+
+    void move_Screen0();
+    void move_Screen1();
 
 public slots:
     void activeWindowChanged(WId id);

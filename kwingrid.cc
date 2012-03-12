@@ -149,6 +149,33 @@ void KWinGrid::resizeRelative(int __xdiff, int __ydiff)
     }
 }
 
+void KWinGrid::toScreen(int screen)
+{
+    initGeometry();
+    if (activeWindow_) {
+        int xSize = (outer_.width()+hsize_/2)/hsize_;
+        if (xSize<1) xSize = 1;
+        if (xSize>hsplit_) xSize = hsplit_;
+
+        int ySize = (outer_.height()+vsize_/2)/vsize_;
+        if (ySize<1) ySize = 1;
+        if (ySize>vsplit_) ySize = vsplit_;
+
+        int xSlot = (outer_.left()-region_.left()+hsize_/2)/hsize_;
+        if (xSlot<0) xSlot = 0;
+        if (xSlot>=hsplit_) xSlot = hsplit_-1;
+
+        int ySlot = (outer_.top()-region_.top()+vsize_/2)/vsize_;
+        if (ySlot<0) ySlot = 0;
+        if (ySlot>=vsplit_) ySlot = vsplit_-1;
+
+        initGeometry(screen);
+        QRect newGeometry = doMoveResize(xSlot,ySlot,xSize,ySize);
+        updateGeometry(newGeometry);
+        applyGeometry();
+    }
+}
+
 QRect KWinGrid::doMoveResize(int __xslot, int __yslot,
                              int __xsize, int __ysize)
 {
@@ -328,143 +355,61 @@ void KWinGrid::resizeSlot(int nx, int ny, int szx, int szy)
 
 // slots
 
-void KWinGrid::move_TL()
-{
-    moveSlot(2, 2, 0, 0);
-}
+void KWinGrid::move_TL()        { moveSlot(2, 2, 0, 0); }
+void KWinGrid::move_TR()        { moveSlot(2, 2, 1, 0); }
+void KWinGrid::move_BL()        { moveSlot(2, 2, 0, 1); }
+void KWinGrid::move_BR()        { moveSlot(2, 2, 1, 1); }
+void KWinGrid::resize_Q()       { resizeSlot(2, 2, 0, 0); }
+void KWinGrid::resize_H()       { resizeSlot(2, 2, 1, 0); }
+void KWinGrid::resize_V()       { resizeSlot(2, 2, 0, 1); }
+void KWinGrid::resize_F()       { resizeSlot(2, 2, 1, 1); }
 
-void KWinGrid::move_TR()
-{
-    moveSlot(2, 2, 1, 0);
-}
+void KWinGrid::move32_00()      { moveSlot(3, 2, 0, 0); }
+void KWinGrid::move32_10()      { moveSlot(3, 2, 1, 0); }
+void KWinGrid::move32_20()      { moveSlot(3, 2, 2, 0); }
+void KWinGrid::move32_01()      { moveSlot(3, 2, 0, 1); }
+void KWinGrid::move32_11()      { moveSlot(3, 2, 1, 1); }
+void KWinGrid::move32_21()      { moveSlot(3, 2, 2, 1); }
+void KWinGrid::resize32_00()    { resizeSlot(3, 2, 0, 0); }
+void KWinGrid::resize32_10()    { resizeSlot(3, 2, 1, 0); }
+void KWinGrid::resize32_20()    { resizeSlot(3, 2, 2, 0); }
+void KWinGrid::resize32_01()    { resizeSlot(3, 2, 0, 1); }
+void KWinGrid::resize32_11()    { resizeSlot(3, 2, 1, 1); }
+void KWinGrid::resize32_21()    { resizeSlot(3, 2, 2, 1); }
 
-void KWinGrid::move_BL()
-{
-    moveSlot(2, 2, 0, 1);
-}
+void KWinGrid::move43_00()      { moveSlot(4, 3, 0, 0); }
+void KWinGrid::move43_10()      { moveSlot(4, 3, 1, 0); }
+void KWinGrid::move43_20()      { moveSlot(4, 3, 2, 0); }
+void KWinGrid::move43_30()      { moveSlot(4, 3, 3, 0); }
+void KWinGrid::move43_01()      { moveSlot(4, 3, 0, 1); }
+void KWinGrid::move43_11()      { moveSlot(4, 3, 1, 1); }
+void KWinGrid::move43_21()      { moveSlot(4, 3, 2, 1); }
+void KWinGrid::move43_31()      { moveSlot(4, 3, 3, 1); }
+void KWinGrid::move43_02()      { moveSlot(4, 3, 0, 2); }
+void KWinGrid::move43_12()      { moveSlot(4, 3, 1, 2); }
+void KWinGrid::move43_22()      { moveSlot(4, 3, 2, 2); }
+void KWinGrid::move43_32()      { moveSlot(4, 3, 3, 2); }
+void KWinGrid::resize43_00()    { resizeSlot(4, 3, 0, 0); }
+void KWinGrid::resize43_10()    { resizeSlot(4, 3, 1, 0); }
+void KWinGrid::resize43_20()    { resizeSlot(4, 3, 2, 0); }
+void KWinGrid::resize43_30()    { resizeSlot(4, 3, 3, 0); }
+void KWinGrid::resize43_01()    { resizeSlot(4, 3, 0, 1); }
+void KWinGrid::resize43_11()    { resizeSlot(4, 3, 1, 1); }
+void KWinGrid::resize43_21()    { resizeSlot(4, 3, 2, 1); }
+void KWinGrid::resize43_31()    { resizeSlot(4, 3, 3, 1); }
+void KWinGrid::resize43_02()    { resizeSlot(4, 3, 0, 2); }
+void KWinGrid::resize43_12()    { resizeSlot(4, 3, 1, 2); }
+void KWinGrid::resize43_22()    { resizeSlot(4, 3, 2, 2); }
+void KWinGrid::resize43_32()    { resizeSlot(4, 3, 3, 2); }
 
-void KWinGrid::move_BR()
-{
-    moveSlot(2, 2, 1, 1);
-}
+void KWinGrid::move_L()         { moveRelative(-1,0); }
+void KWinGrid::move_R()         { moveRelative(1,0); }
+void KWinGrid::move_U()         { moveRelative(0,-1); }
+void KWinGrid::move_D()         { moveRelative(0,1); }
+void KWinGrid::resize_IH()      { resizeRelative(1,0); }
+void KWinGrid::resize_DH()      { resizeRelative(-1,0); }
+void KWinGrid::resize_IV()      { resizeRelative(0,1); }
+void KWinGrid::resize_DV()      { resizeRelative(0,-1); }
 
-void KWinGrid::resize_Q()
-{
-    resizeSlot(2, 2, 0, 0);
-}
-
-void KWinGrid::resize_H()
-{
-    resizeSlot(2, 2, 1, 0);
-}
-
-void KWinGrid::resize_V()
-{
-    resizeSlot(2, 2, 0, 1);
-}
-
-void KWinGrid::resize_F()
-{
-    resizeSlot(2, 2, 1, 1);
-}
-
-void KWinGrid::move_00()
-{
-    moveSlot(3, 2, 0, 0);
-}
-
-void KWinGrid::move_10()
-{
-    moveSlot(3, 2, 1, 0);
-}
-
-void KWinGrid::move_20()
-{
-    moveSlot(3, 2, 2, 0);
-}
-
-void KWinGrid::move_01()
-{
-    moveSlot(3, 2, 0, 1);
-}
-
-void KWinGrid::move_11()
-{
-    moveSlot(3, 2, 1, 1);
-}
-
-void KWinGrid::move_21()
-{
-    moveSlot(3, 2, 2, 1);
-}
-
-void KWinGrid::resize_00()
-{
-    resizeSlot(3, 2, 0, 0);
-}
-
-void KWinGrid::resize_10()
-{
-    resizeSlot(3, 2, 1, 0);
-}
-
-void KWinGrid::resize_20()
-{
-    resizeSlot(3, 2, 2, 0);
-}
-
-void KWinGrid::resize_01()
-{
-    resizeSlot(3, 2, 0, 1);
-}
-
-void KWinGrid::resize_11()
-{
-    resizeSlot(3, 2, 1, 1);
-}
-
-void KWinGrid::resize_21()
-{
-    resizeSlot(3, 2, 2, 1);
-}
-
-void KWinGrid::move_L()
-{
-    moveRelative(-1,0);
-}
-
-void KWinGrid::move_R()
-{
-    moveRelative(1,0);
-}
-
-void KWinGrid::move_U()
-{
-    moveRelative(0,-1);
-}
-
-void KWinGrid::move_D()
-{
-    moveRelative(0,1);
-}
-
-void KWinGrid::resize_IH()
-{
-    resizeRelative(1,0);
-}
-
-void KWinGrid::resize_DH()
-{
-    resizeRelative(-1,0);
-}
-
-void KWinGrid::resize_IV()
-{
-    resizeRelative(0,1);
-}
-
-void KWinGrid::resize_DV()
-{
-    resizeRelative(0,-1);
-}
-
+void KWinGrid::move_Screen0()   { toScreen(0); }
+void KWinGrid::move_Screen1()   { toScreen(1); }
